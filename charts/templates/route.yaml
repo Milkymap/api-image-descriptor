@@ -1,0 +1,18 @@
+{{- $fullName := include "charts.fullname" . -}}
+kind: Route
+apiVersion: route.openshift.io/v1
+metadata:
+  name: {{ $fullName }}-route
+  labels:
+    app: {{ template "charts.fullname" . }}
+    chart: {{ template "charts.chart" . }}
+    release: {{ .Release.Name }}
+    heritage: {{ .Release.Service }}
+spec:
+  host: {{ .Values.ingress.host }}
+  to:
+    kind: Service
+    name: {{ $fullName }}
+  tls:
+    termination: edge
+    insecureEdgeTerminationPolicy: Redirect

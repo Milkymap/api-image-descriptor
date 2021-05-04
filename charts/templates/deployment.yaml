@@ -1,0 +1,60 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ template "charts.fullname" . }}
+  labels:
+    app: {{ template "charts.fullname" . }}
+    chart: {{ template "charts.chart" . }}
+    release: {{ .Release.Name }}
+    heritage: {{ .Release.Service }}
+spec:
+  securityContext:
+    runAsUser: 1000066642
+  replicas: {{ .Values.replicaCount }}
+  selector:
+    matchLabels:
+      app: {{ template "charts.fullname" . }}
+      release: {{ .Release.Name }}
+  template:
+    metadata:
+      labels:
+        networkpolicy: front
+        app: {{ template "charts.fullname" . }}
+        release: {{ .Release.Name }}
+    spec:
+      {{- if .Values.image.imagePullSecrets }}
+      imagePullSecrets:
+      - name: {{ .Values.image.imagePullSecrets }}
+      {{- end }}
+      affinity:
+        podAntiAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+          - podAffinityTerm:
+              labelSelector:
+                matchExpressions:
+                - key: app
+                  operator: In
+                  values:
+                  - "{{.Chart.Name }}"
+              topologyKey: "kubernetes.io/hostname"
+            weight: 100
+      containers:
+        - name: {{ .Chart.Name }}-{{ .Values.image.commit.sha }}
+          image: "{{ .Values.image.registry }}/{{ .Values.image.repository }}:{{ .Values.image.tag }}"
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          ports:
+            - name: http
+              containerPort: {{ .Values.service.port }}
+              protocol: TCP
+          livenessProbe:
+            httpGet:
+              path: /is_alive
+              port: http 
+            initialDelaySeconds: 30
+          readynessProbe:
+            httpGet:
+              path: /is_alive
+              port: http
+            initialDelaySeconds: 10
+          resources:
+{{ toYaml .Values.resources | indent 12 }}
